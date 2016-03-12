@@ -1,0 +1,7 @@
+riscv64-unknown-elf-gcc -O1 -c test.c
+riscv64-unknown-elf-objdump -S test.o
+
+
+riscv64-unknown-elf-gcc -O1 -c string_test.cpp
+riscv64-unknown-elf-objdump -S string_test.o
+
