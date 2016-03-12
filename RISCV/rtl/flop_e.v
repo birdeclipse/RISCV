@@ -39,11 +39,6 @@
  * flop_e.v
  ****************************************************************************/
 
-/**
- * Module: flop_e
- * 
- * TODO: Add module documentation
- */
 module flop_e
 		#(parameter Bits=1)
 		(

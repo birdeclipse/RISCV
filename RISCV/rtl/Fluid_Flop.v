@@ -39,161 +39,161 @@
 //==============================================================================
 
 /****************************************************************************
-    Description:
+ Description:
 
-****************************************************************************/
+ ****************************************************************************/
 
 `define FLOP_RETRY_USE_FLOPS 1
 module Fluid_Flop
   #(parameter Size=64)
-    (input                     clk
-     ,input                    reset
+   (input                     clk
+    ,input                    reset
 
-     ,input  logic [Size-1:0]  din
-     ,input  logic             dinValid
-     ,output logic             dinRetry
+    ,input  logic [Size-1:0]  din
+    ,input  logic             dinValid
+    ,output logic             dinRetry
 
-     ,output logic [Size-1:0]  q
-     ,input  logic             qRetry
-     ,output logic             qValid
-     );
+    ,output logic [Size-1:0]  q
+    ,input  logic             qRetry
+    ,output logic             qValid
+    );
 
-  // {{{1 Private variable priv_*i, failure, and shadowq declaration
-  // Output private signals
-  logic [Size-1:0] shadowq;
-  logic c1;
-  logic c2;
-  logic shadowValid;
+   // {{{1 Private variable priv_*i, failure, and shadowq declaration
+   // Output private signals
+   logic [Size-1:0] shadowq;
+   logic            c1;
+   logic            c2;
+   logic            shadowValid;
 
-  logic          priv_qValid;
-  always @(*) begin
-    qValid = priv_qValid;
-  end
-  logic          priv_dinRetry;
-  always @(*) begin
-    dinRetry = priv_dinRetry;
-  end
+   logic            priv_qValid;
+   always @(*) begin
+      qValid = priv_qValid;
+   end
+   logic          priv_dinRetry;
+   always @(*) begin
+      dinRetry = priv_dinRetry;
+   end
 
-  // Inputs private signals
-  logic          priv_qRetry;
-  always @(*) begin
-    priv_qRetry = qRetry;
-  end
-  logic          priv_dinValid;
-  always @(*) begin
-    priv_dinValid = dinValid;
-  end
-  // 1}}}
+   // Inputs private signals
+   logic          priv_qRetry;
+   always @(*) begin
+      priv_qRetry = qRetry;
+   end
+   logic          priv_dinValid;
+   always @(*) begin
+      priv_dinValid = dinValid;
+   end
+   // 1}}}
 
-  // {{{1 cond1 and cond2
-  always @(*) begin
-    c1 = (priv_qValid & priv_qRetry); // resend (even with failure, we can have a resend) 
-    c2 = priv_dinValid | shadowValid; // pending
-  end
-  // 1}}}
+   // {{{1 cond1 and cond2
+   always @(*) begin
+      c1 = (priv_qValid & priv_qRetry); // resend (even with failure, we can have a resend)
+      c2 = priv_dinValid | shadowValid; // pending
+   end
+   // 1}}}
 
-  // {{{1 shadowValid
+   // {{{1 shadowValid
 `ifdef FLOP_RETRY_USE_FLOPS
-  always @(posedge clk) begin
-    if (reset) begin
-      shadowValid <= 'b0;
-    end else begin
-      shadowValid <= (c1 & c2);
-    end 
-  end 
-`else 
-  logic shadowValid_nclk;
-  always_latch begin
-    if (~clk) begin
+   always @(posedge clk) begin
       if (reset) begin
-        shadowValid_nclk<= 'b0;
+         shadowValid <= 'b0;
       end else begin
-        shadowValid_nclk<= (c1 & c2); 
+         shadowValid <= (c1 & c2);
       end
-    end
-  end
-  always_latch begin
-    if (clk) begin
-      shadowValid <= shadowValid_nclk;
-    end
-  end
-`endif 
-  // 1}}}
+   end
+`else
+   logic shadowValid_nclk;
+   always_latch begin
+      if (~clk) begin
+         if (reset) begin
+            shadowValid_nclk<= 'b0;
+         end else begin
+            shadowValid_nclk<= (c1 & c2);
+         end
+      end
+   end
+   always_latch begin
+      if (clk) begin
+         shadowValid <= shadowValid_nclk;
+      end
+   end
+`endif
+   // 1}}}
 
-  // {{{1 shadowq
-  logic s_enable;
-  always @(*) begin
-    s_enable = !shadowValid;
-  end
+   // {{{1 shadowq
+   logic s_enable;
+   always @(*) begin
+      s_enable = !shadowValid;
+   end
 
-  always@ (posedge clk) begin
-    if (s_enable) begin
-      shadowq <= din;
-    end
-  end 
-  // 1}}}
+   always@ (posedge clk) begin
+      if (s_enable) begin
+         shadowq <= din;
+      end
+   end
+   // 1}}}
 
    // {{{1 q
-  logic q_enable;
+   logic q_enable;
 `ifdef FLOP_RETRY_USE_FLOPS
-  always @(negedge clk) begin
-    q_enable <= !c1; 
-  end
+   always @(negedge clk) begin
+      q_enable <= !c1;
+   end
 `else
-  always @(*) begin
-    if (!clk) begin
-       q_enable <= !c1; 
-    end
-  end
+   always @(*) begin
+      if (!clk) begin
+         q_enable <= !c1;
+      end
+   end
 `endif
 
-  always @ (negedge clk) begin
+   always @ (negedge clk) begin
       if (q_enable) begin
-        q <= shadowq;
-      end 
-  end 
-  // 1}}}
-
-  // {{{1 priv_qValid (qValid internal value)
-  logic priv_qValidla2;
-`ifdef FLOP_RETRY_USE_FLOPS
-  always @(posedge clk) begin
-    if (reset) begin
-      priv_qValidla2 <='b0;
-    end else begin
-      priv_qValidla2 <= (c1 | c2);
-    end 
-  end 
-
-`else 
-  logic priv_qValidla;
-  always_latch begin
-    if (~clk) begin
-      if (reset) begin
-        priv_qValidla    <= 'b0;
-      end else begin
-        priv_qValidla    <= (c1 | c2);
+         q <= shadowq;
       end
-    end
-  end
+   end
+   // 1}}}
 
-  always_latch begin
-    if (clk) begin
-      priv_qValidla2 <= priv_qValidla;
-    end
-  end
-`endif 
+   // {{{1 priv_qValid (qValid internal value)
+   logic priv_qValidla2;
+`ifdef FLOP_RETRY_USE_FLOPS
+   always @(posedge clk) begin
+      if (reset) begin
+         priv_qValidla2 <='b0;
+      end else begin
+         priv_qValidla2 <= (c1 | c2);
+      end
+   end
 
-  always @(*) begin
-    priv_qValid = priv_qValidla2;
-  end
-  // 1}}}
+`else
+   logic priv_qValidla;
+   always_latch begin
+      if (~clk) begin
+         if (reset) begin
+            priv_qValidla    <= 'b0;
+         end else begin
+            priv_qValidla    <= (c1 | c2);
+         end
+      end
+   end
 
-  // {{{1 priv_dinRetry (dinRetry internal value)
+   always_latch begin
+      if (clk) begin
+         priv_qValidla2 <= priv_qValidla;
+      end
+   end
+`endif
 
-  always @(*) begin
-   priv_dinRetry = shadowValid | reset;
-  end
-  // 1}}}
+   always @(*) begin
+      priv_qValid = priv_qValidla2;
+   end
+   // 1}}}
 
-endmodule 
+   // {{{1 priv_dinRetry (dinRetry internal value)
+
+   always @(*) begin
+      priv_dinRetry = shadowValid | reset;
+   end
+   // 1}}}
+
+endmodule

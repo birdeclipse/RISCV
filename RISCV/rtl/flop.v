@@ -39,12 +39,6 @@
  * flop.v
  ****************************************************************************/
 
-/**
- * Module: flop
- * 
- * TODO: Add module documentation
- */
-
 module flop
 		#(parameter Bits=1)
 		(
