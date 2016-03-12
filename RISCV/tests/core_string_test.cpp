@@ -96,25 +96,25 @@ std::queue<Dcache_req> myqueue;
 
 void advance_half_clock(Vcore *top) {
 #ifdef TRACE
-  tfp->dump(global_time);
+    tfp->dump(global_time);
 #endif
 
-  top->eval();
-  top->clk = !top->clk;
-  top->eval();
+    top->eval();
+    top->clk = !top->clk;
+    top->eval();
 
-  global_time++;
-  if (Verilated::gotFinish())  
-    exit(0);
+    global_time++;
+    if (Verilated::gotFinish())
+        exit(0);
 }
 
 void advance_clock(Vcore *top, int nclocks=1){
 
-  for( int i=0;i<nclocks;i++) {
-    for (int clk=0; clk<2; clk++) {
-      advance_half_clock(top);
+    for( int i=0;i<nclocks;i++) {
+        for (int clk=0; clk<2; clk++) {
+            advance_half_clock(top);
+        }
     }
-  }
 }
 
 void icache_handle(Vcore *top);
@@ -152,7 +152,7 @@ int main(int argc, char **argv, char **env) {
 		top->icache_ack_data[i] = 0;
 	}
 	for(i=0;i<4096;i++){
-		
+
 		ram[i] = 0;
 	}
 	top->icache_ack_data_valid = 0;
@@ -161,12 +161,12 @@ int main(int argc, char **argv, char **env) {
 	top->dcache_ack_data = 0;
 	top->dcache_ack_rd = 0;
 	top->dcache_ack_valid = 0;
-	
+
 	for(half_cycyle_count=0;half_cycyle_count<(NUM_CYCLE*2);half_cycyle_count++){
 		advance_half_clock(top);
 		top->reset = (half_cycyle_count<(NUM_RESET_CYCLE*2)?1:0);
 		if(half_cycyle_count>((NUM_RESET_CYCLE+1)*2)){
-				
+
 			icache_handle(top);
 			mem_operation(top);
 			if((top->debug_dest_valid == 1)&(top->debug_dest == 2034)&(top->debug_dest_rd == 10)&(top->debug_dest_long == 1)){
@@ -178,7 +178,7 @@ int main(int argc, char **argv, char **env) {
 				half_cycyle_count = (NUM_CYCLE*2) - 16;
 			}
 		}
-       advance_half_clock(top);
+        advance_half_clock(top);
 	}
 
 	top->final();
@@ -195,11 +195,11 @@ int main(int argc, char **argv, char **env) {
 
 
 void icache_handle(Vcore *top){
-	
+
 	int i;
 	static int delay_counter =0;
 	static int icache_addr =0;
-	
+
 	if((top->icache_req_addr_valid) == 0){
 		delay_counter = rand() % 20 + 1;	/*reset the delay counter*/
 		top->icache_ack_data_valid = 0;
@@ -207,7 +207,7 @@ void icache_handle(Vcore *top){
 			top->icache_ack_data[i] = 0;
 		}
 		return ;
-	}	
+	}
 	else{
 		if(delay_counter == 0){
 			icache_addr = (top->icache_req_addr)>>5;
@@ -230,25 +230,25 @@ void mem_operation(Vcore *top){
 
 	mem_write(top);/*check if there is an write operation*/
 	mem_read(top);/*check if therr is an pending read operation*/
-	
+
 	return;
 }
 
 void mem_write(Vcore* top){
 
-	Dcache_req pending_req;	
+	Dcache_req pending_req;
 	vluint64_t temp;
-	vluint64_t mem_data;	
+	vluint64_t mem_data;
 
 	uint64_t write_mask;
 	uint64_t write_enable;
-	
+
 
 	vluint64_t mem_address = (top->dcache_req_addr) >> 3;
 	vluint8_t  mem_op = (top->dcache_req_op);
 	vluint8_t  mem_rd = (top->dcache_req_rd);
 	vluint8_t LOW_3_BIT = (top->dcache_req_addr) & (0x0000000000000007);
-	
+
 	if ((top->dcache_req_valid) == 1) {
 		switch (top->dcache_req_op) {
 			case 0:case 1:case 2:case 3:case 4:case 5:case 6: {
@@ -260,7 +260,7 @@ void mem_write(Vcore* top){
 				printf("testbench: push request to fifo!!!\n");
 				break;
 			}
-	
+
 			case 8: {
 				switch(LOW_3_BIT){
 					case 0:{
@@ -319,7 +319,7 @@ void mem_write(Vcore* top){
 				printf("SB: WRITE DATA %lX\n",(temp | mem_data));
 				break;
 			}//SB
-			
+
 			case 9: {
 				switch(LOW_3_BIT){
 					case 0:{
@@ -336,7 +336,7 @@ void mem_write(Vcore* top){
 					}
 					case 4:{
 						write_mask = half_word_mask_2;
-						write_enable = half_word_enable_2;					
+						write_enable = half_word_enable_2;
 						temp = (top->dcache_req_data)<<32;
 						break;
 					}
@@ -354,7 +354,7 @@ void mem_write(Vcore* top){
 				printf("SH: WRITE DATA %lX\n",(temp | mem_data));
 				break;
 			}	//SH
-			
+
 			case 10: {
 				switch(LOW_3_BIT){
 					case 0:{
@@ -370,20 +370,20 @@ void mem_write(Vcore* top){
 						break;
 					}
 					default: printf("unaligned ram access!!! illegal!!!\n");
-				}			
+				}
 				temp = temp & write_enable;
 				mem_data = ram[mem_address] & write_mask;
 				ram[mem_address] = temp | mem_data;
 				printf("SW: WRITE DATA %lX\n",(temp | mem_data));
 				break;
 			}	//SW
-			
+
 			case 11: {
 				ram[mem_address] = (top->dcache_req_data);
 				printf("SD: WRITE DATA %lX \n",(top->dcache_req_data));
 				break;
 			}	//SD
-			
+
 			default: printf("undefined OP code!!!! illegal!!!\n");
 		}
 	}
@@ -391,13 +391,13 @@ void mem_write(Vcore* top){
 }
 
 void mem_read(Vcore *top){
-	
+
 	int i;
 	int size;
 
-	uint8_t LOW_3_BIT;	
-	int8_t  byte_signed;	
-	int16_t half_word_signed;	
+	uint8_t LOW_3_BIT;
+	int8_t  byte_signed;
+	int16_t half_word_signed;
 	int32_t word_signed;
 
 	uint64_t byte_signed_temp;
@@ -405,27 +405,27 @@ void mem_read(Vcore *top){
 	uint64_t word_signed_temp;
 
 	uint64_t byte_unsigned;
-	uint64_t half_word_unsigned;	
+	uint64_t half_word_unsigned;
 	uint64_t word_unsigned;
-	
+
 	uint64_t read_enable;
 
 	if((top->dcache_ack_valid) == 1){
-		
+
 		(top->dcache_ack_valid) = 0;
 		(top->dcache_ack_rd) = 0;
 		(top->dcache_ack_data) = 0;
-		
+
 	}
 	else if(!myqueue.empty()){
 		size = myqueue.size();
-		for(i=0;i<size;i++){		
+		for(i=0;i<size;i++){
 			if (myqueue.front().delay_time == 0){
 				LOW_3_BIT = (myqueue.front().dcache_req_addr) & (0x0000000000000007);
 				switch (myqueue.front().dcache_req_op) {
 					case 0: {
 						switch(LOW_3_BIT){
-							case 0:{								
+							case 0:{
 								read_enable = byte_enable_0;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								byte_signed = (uint8_t) byte_signed_temp;
@@ -440,37 +440,37 @@ void mem_read(Vcore *top){
 							case 2:{
 								read_enable = byte_enable_2;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								byte_signed = (uint8_t)(byte_signed_temp>>16);								
+								byte_signed = (uint8_t)(byte_signed_temp>>16);
 								break;
 							}
 							case 3:{
 								read_enable = byte_enable_3;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								byte_signed = (uint8_t)(byte_signed_temp>>24);								
+								byte_signed = (uint8_t)(byte_signed_temp>>24);
 								break;
 							}
 							case 4:{
 								read_enable = byte_enable_4;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								byte_signed = (uint8_t)(byte_signed_temp>>32);								
+								byte_signed = (uint8_t)(byte_signed_temp>>32);
 								break;
 							}
 							case 5:{
 								read_enable = byte_enable_5;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								byte_signed = (uint8_t)(byte_signed_temp>>40);								
+								byte_signed = (uint8_t)(byte_signed_temp>>40);
 								break;
 							}
 							case 6:{
 								read_enable = byte_enable_6;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								byte_signed = (uint8_t)(byte_signed_temp>>48);								
+								byte_signed = (uint8_t)(byte_signed_temp>>48);
 								break;
 							}
 							case 7:{
 								read_enable = byte_enable_7;
 								byte_signed_temp = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								byte_signed = (uint8_t)(byte_signed_temp>>56);								
+								byte_signed = (uint8_t)(byte_signed_temp>>56);
 								break;
 							}
 							default: break;
@@ -478,11 +478,11 @@ void mem_read(Vcore *top){
 						(top->dcache_ack_valid) = 1;
 						(top->dcache_ack_rd) = myqueue.front().dcache_req_rd;
 						(top->dcache_ack_data) = (int64_t)byte_signed;
-				
+
 						break;
 					}
 					case 1: {
-						
+
 						switch(LOW_3_BIT){
 							case 0:{
 								read_enable = half_word_enable_0;
@@ -518,9 +518,8 @@ void mem_read(Vcore *top){
 						(top->dcache_ack_data) = (int64_t)half_word_signed;
 						break;
 					}
-					
-					
-					case 2: {	
+
+					case 2: {
 						switch(LOW_3_BIT){
 							case 0:{
 								read_enable = word_enable_0;
@@ -542,7 +541,7 @@ void mem_read(Vcore *top){
 						(top->dcache_ack_data) = (int64_t)word_signed;
 						break;
 					}
-					
+
 					case 3: {
 						(top->dcache_ack_valid) = 1;
 						(top->dcache_ack_rd) = myqueue.front().dcache_req_rd;
@@ -571,36 +570,36 @@ void mem_read(Vcore *top){
 							}
 							case 3:{
 								read_enable = byte_enable_3;
-								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);	
+								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								byte_unsigned = byte_unsigned >> 24;
 								break;
 							}
 							case 4:{
 								read_enable = byte_enable_4;
-								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);	
+								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								byte_unsigned = byte_unsigned >> 32;
 								break;
 							}
 							case 5:{
 								read_enable = byte_enable_5;
-								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);	
+								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								byte_unsigned = byte_unsigned >> 40;
 								break;
 							}
 							case 6:{
 								read_enable = byte_enable_6;
-								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);	
+								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								byte_unsigned = byte_unsigned >> 48;
 								break;
 							}
 							case 7:{
 								read_enable = byte_enable_7;
-								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);	
+								byte_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								byte_unsigned = byte_unsigned >> 56;
 								break;
 							}
 							default: break;
-						}						
+						}
 						(top->dcache_ack_valid) = 1;
 						(top->dcache_ack_rd) = myqueue.front().dcache_req_rd;
 
@@ -611,7 +610,7 @@ void mem_read(Vcore *top){
 						switch(LOW_3_BIT){
 							case 0:{
 								read_enable = half_word_enable_0;
-								half_word_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);								
+								half_word_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								break;
 							}
 
@@ -625,14 +624,14 @@ void mem_read(Vcore *top){
 							case 4:{
 								read_enable = half_word_enable_2;
 								half_word_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								half_word_unsigned = half_word_unsigned >> 32;								
+								half_word_unsigned = half_word_unsigned >> 32;
 								break;
 							}
 
 							case 6:{
 								read_enable = half_word_enable_3;
 								half_word_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
-								half_word_unsigned = half_word_unsigned >> 48;									
+								half_word_unsigned = half_word_unsigned >> 48;
 								break;
 							}
 							default: break;
@@ -648,7 +647,7 @@ void mem_read(Vcore *top){
 						switch(LOW_3_BIT){
 							case 0:{
 								read_enable = word_enable_0;
-								word_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);						
+								word_unsigned = (uint64_t)(ram[(myqueue.front().dcache_req_addr)>>3] & read_enable);
 								break;
 							}
 
@@ -676,11 +675,11 @@ void mem_read(Vcore *top){
 				myqueue.front().delay_time--;
 				myqueue.push(myqueue.front());
 				myqueue.pop();
-			}			
+			}
 		}
 	}
 	return;
-	
+
 }
 
 
