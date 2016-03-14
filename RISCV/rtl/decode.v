@@ -157,8 +157,9 @@ module decode (
    logic                     instr_need_rs1;
    logic                     instr_need_rs2;
 
-   assign	decode_dest_sel_next	=	(instr[11: 7]);
+
    assign	instr			=	(last_src1_pending|last_src2_pending) ? pending_instr : decode_ack_instr;
+   assign	pc_latch_next	=	(last_src1_pending|last_src2_pending) ? (pending_PC) :(decode_ack_pc);
    assign	Imm12			=  	instr[31:20];
    assign	shamt			=	instr[24:20];
 
@@ -171,18 +172,18 @@ module decode (
    assign 	funct7_next 	=  	(instr[31:25]);
 
 
-
-   assign	imm_rs2_sel_next	=	((op_code_next == `OP_IMM)|(op_code_next == `OP_IMM_32));
-   assign	instr_is_unsigned	=	(instr_is_BLTU|instr_is_BGEU|instr_is_SLTIU|instr_is_SLTU);
-   assign	sign_ex_imm_next	=	((instr_is_unsigned)?({52'b0,Imm12}):({{52{Imm12[11]}},Imm12}));
-   assign	shift_amount_next	=	({instr[25],shamt});
-   assign	pc_latch_next		=	(last_src1_pending|last_src2_pending) ? (pending_PC) :(decode_ack_pc);
-
-
    assign	instr_is_SLTIU	    = 	(funct3_next == `OP_IS_SLTU)&(op_code_next == `OP_IMM);
    assign	instr_is_SLTU 		= 	(funct3_next == `OP_IS_SLTU)&(op_code_next == `OP)&(funct7_next == 7'b0000_000);
    assign	instr_is_BGEU		= 	(funct3_next == `BRANCH_IS_BGEU)&(op_code_next == `BRANCH);
    assign	instr_is_BLTU		= 	(funct3_next == `BRANCH_IS_BLTU)&(op_code_next == `BRANCH);
+   assign	instr_is_unsigned	=	(instr_is_BLTU|instr_is_BGEU|instr_is_SLTIU|instr_is_SLTU);
+   assign	sign_ex_imm_next	=	((instr_is_unsigned)?({52'b0,Imm12}):({{52{Imm12[11]}},Imm12}));
+   assign	imm_rs2_sel_next	=	((op_code_next == `OP_IMM)|(op_code_next == `OP_IMM_32));
+   assign	shift_amount_next	=	({instr[25],shamt});
+   assign	decode_dest_sel_next	=	(instr[11: 7]);
+
+
+
    assign	instr_is_load		=	(decode_ack_data_valid&(!decode_flush))&(op_code_next == `LOAD);
 
    assign   instr_need_rs1      =    ((op_code_next == `OP_IMM)|
@@ -265,11 +266,45 @@ module decode (
 	       .clk		(clk),
 	       .reset	(reset),
 
-	       .din		({decode_rs1_sel,decode_rs2_sel,rs1_data,rs2_data,decode_dest_sel_next,imm_rs2_sel_next,instr_is_unsigned,sign_ex_imm_next,shift_amount_next,U_imm_next,UJ_imm_next,S_imm_next,SB_imm_next,op_code_next,funct3_next,funct7_next,pc_latch_next}),
+	       .din		({decode_rs1_sel,
+                      decode_rs2_sel,
+                      rs1_data,
+                      rs2_data,
+                      decode_dest_sel_next,
+                      imm_rs2_sel_next,
+                      instr_is_unsigned,
+                      sign_ex_imm_next,
+                      shift_amount_next,
+                      U_imm_next,
+                      UJ_imm_next,
+                      S_imm_next,
+                      SB_imm_next,
+                      op_code_next,
+                      funct3_next,
+                      funct7_next,
+                      pc_latch_next}),
+
 	       .dinValid	(decode_ack_data_valid&(!decode_flush)&(!src1_is_pending)&(!src2_is_pending)),
 	       .dinRetry	(decode_ack_rety),
 
-	       .q		({exe_rs1_sel,exe_rs2_sel,exe_rs1_data,exe_rs2_data,decode_dest_sel,imm_rs2_sel,comp_is_unsigned,sign_ex_imm,shift_amount,U_imm,UJ_imm,S_imm,SB_imm,op_code,funct3,funct7,pc_latch}),
+	       .q		({exe_rs1_sel,
+                      exe_rs2_sel,
+                      exe_rs1_data,
+                      exe_rs2_data,
+                      decode_dest_sel,
+                      imm_rs2_sel,
+                      comp_is_unsigned,
+                      sign_ex_imm,
+                      shift_amount,
+                      U_imm,
+                      UJ_imm,
+                      S_imm,
+                      SB_imm,
+                      op_code,
+                      funct3,
+                      funct7,
+                      pc_latch}),
+
 	       .qRetry	(execute_ack_data_rety|last_src1_pending|last_src2_pending),
 	       .qValid	(execute_ack_data_valid)
 

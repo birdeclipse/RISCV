@@ -1,5 +1,5 @@
 //==============================================================================
-//      File:           Fluid_Flop.v
+//      File:           Fluid_Flop.V
 //      Version:        $Revision$
 //      Author:         Jose Renau  (http://masc.cse.ucsc.edu/)
 //                      Elnaz Ebrahimi

@@ -38,47 +38,92 @@
 
 module mem_access(
 
-	              input         clk,
-	              input         reset,
+	              input          clk,
+	              input          reset,
 
-	              input [63:0]  mem_req_addr,
-	              input [63:0]  mem_req_data,
-	              input [3:0]   mem_req_op,
-	              input [4:0]   mem_req_rd,
+                  /*execute to memory statge interface*/
+	              output         mem_req_valid,
+	              input          mem_req_retry,
+	              output [63:0]  wb_dest,
+	              output [4:0]   wb_rd_sel,
+	              output         wb_dest_enable,
+	              output         wb_dest_long_enable,
 
-	              input         mem_req_valid,
-	              output        mem_req_retry,
+
+	              output [63:0]  mem_req_addr,
+	              output [63:0]  mem_req_data,
+	              output [3:0]   mem_req_op,
+	              output [4:0]   mem_req_rd,
+                  output         mem_req_enable,
 
 
-	              output [63:0] dcache_req_addr, // load or store address computed at execute
-	              output [63:0] dcache_req_data, // data just for the store going to from exe to testbench
-	              output [3:0]  dcache_req_op, // RVMOP_*
-	              output [4:0]  dcache_req_rd, // destination register for the load
-	              output        dcache_req_valid,
-	              input         dcache_req_retry
+
+                  /*decache_interface*/
+	              output [63:0]  dcache_req_addr,
+	              output [255:0] dcache_req_data,
+	              output         dcache_req_valid,
+	              input          dcache_req_retry
 
                   );
 
 `define COMPILATION_SWITCH
 
-   /* verilator lint_off UNUSED */
 
 
-   Fluid_Flop#(.Size(64+64+4+5))
-   MEM_REQ(
 
-	       .clk(clk),
-	       .reset(reset),
 
-	       .din({mem_req_addr,mem_req_data,mem_req_op,mem_req_rd}),
-	       .dinValid(mem_req_valid),
-	       .dinRetry(mem_req_retry),
 
-	       .q({dcache_req_addr,dcache_req_data,dcache_req_op,dcache_req_rd}),
-	       .qRetry(dcache_req_retry),
-	       .qValid(dcache_req_valid)
 
-           );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

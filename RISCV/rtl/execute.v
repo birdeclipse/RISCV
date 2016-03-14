@@ -46,17 +46,11 @@ module execute(
 	           input         clk,
 	           input         reset,
 
-
+               /*Decode to execute data interface*/
 	           input         execute_ack_data_valid,
 	           output        execute_ack_data_rety,
-
-
 	           input [4:0]   exe_rs1_sel,
 	           input [4:0]   exe_rs2_sel,
-
-
-
-
 	           input [4:0]   decode_dest_sel,
 	           input         imm_rs2_sel,
 	           input         comp_is_unsigned,
@@ -66,53 +60,50 @@ module execute(
 	           input [19:0]  UJ_imm,
 	           input [11:0]  S_imm,
 	           input [11:0]  SB_imm,
-
 	           input [6:0]   op_code,
 	           input [2:0]   funct3,
 	           input [6:0]   funct7,
 	           input [63:0]  PC,
-
 	           input [63:0]  rs1_data,
 	           input [63:0]  rs2_data,
 
+               /*execute to fetch interface jump, link and branch*/
+	           output [63:0] branch_target,
+	           output        branch_target_enable,
 
-
-
+               /*execute to memory statge interface*/
+	           output        mem_req_valid,
+	           input         mem_req_retry,
+	           output [63:0] wb_dest,
 	           output [4:0]  wb_rd_sel,
 	           output        wb_dest_enable,
 	           output        wb_dest_long_enable,
-	           output [63:0] wb_dest,
-
-	           output [63:0] branch_target,
-	           output        branch_target_enable,
 
 
 	           output [63:0] mem_req_addr,
 	           output [63:0] mem_req_data,
 	           output [3:0]  mem_req_op,
 	           output [4:0]  mem_req_rd,
-
-	           output        mem_req_valid,
-	           input         mem_req_retry
+               output        mem_req_enable
 	           );
 
-   //`define COMPILATION_SWITCH_EXECUTE
+//`define COMPILATION_SWITCH_EXECUTE
 
 
-   /* verilator lint_off UNUSED */
-`define OP_IMM			7'b0010_011
-`define OP_IMM_32		7'b0011_011
-`define OP_32			7'b0111_011
+/* verilator lint_off UNUSED */
+`define OP_IMM		7'b0010_011
+`define OP_IMM_32	7'b0011_011
+`define OP_32		7'b0111_011
 `define OP			7'b0110_011
 `define LUI			7'b0110_111
-`define AUIPC			7'b0010_111
+`define AUIPC		7'b0010_111
 `define JAL			7'b1101_111
-`define JALR			7'b1100_111
-`define BRANCH			7'b1100_011
-`define LOAD			7'b0000_011
-`define STORE			7'b0100_011
+`define JALR		7'b1100_111
+`define BRANCH		7'b1100_011
+`define LOAD		7'b0000_011
+`define STORE		7'b0100_011
 
-`define OP_IS_ADD_SUB		3'b000
+`define OP_IS_ADD_SUB	3'b000
 `define OP_IS_SLL		3'b001
 `define OP_IS_SLT		3'b010
 `define OP_IS_SLTU		3'b011
@@ -165,9 +156,13 @@ module execute(
    logic [63:0]              mem_req_data_next;
    logic [3:0]               mem_req_op_next;
    logic [4:0]               mem_req_rd_next;
-   logic                     mem_req_valid_next;
+   logic                     mem_req_enable_next;
    logic                     execute_mem_rety;
    logic                     mem_ask_rety;
+   logic [4:0]               wb_rd_sel_next;
+   logic                     wb_dest_enable_next;
+   logic                     wb_dest_long_enable_next;
+   logic [63:0]              wb_dest_next;
 
 
    always_comb begin
@@ -379,24 +374,6 @@ module execute(
 
 
 
-
-
-
-
-   flop #(.Bits(64+5+1+1))
-   WXBYPASS(
-
-	        .clk(clk),
-	        .reset(reset),
-
-	        .d({wb_dest,wb_rd_sel,wb_dest_enable,wb_dest_long_enable}),
-	        .q({last_dest,last_rd_sel,last_dest_enable,last_dest_long_enable})
-	        );
-
-
-
-
-
    always_comb begin
 
       if((!execute_ack_data_rety)&execute_ack_data_valid)
@@ -408,7 +385,7 @@ module execute(
 		          mem_req_data_next	=	src2;
 		          mem_req_op_next	=	{1'b0,funct3};
 		          mem_req_rd_next	=	decode_dest_sel;
-		          mem_req_valid_next	=	1'b1;
+		          mem_req_enable_next	=	1'b1;
 	           end
 	         `STORE:
 	           begin
@@ -416,42 +393,27 @@ module execute(
 		          mem_req_data_next	=	src2;
 		          mem_req_op_next	=	{1'b1,funct3};
 		          mem_req_rd_next	=	decode_dest_sel;
-		          mem_req_valid_next	=	1'b1;
+		          mem_req_enable_next	=	1'b1;
 	           end
 	         default:
 	           begin
-		          mem_req_addr_next	=	64'b0;
-		          mem_req_data_next	=	src2;
-		          mem_req_op_next	=	{1'b1,funct3};
-		          mem_req_rd_next	=	decode_dest_sel;
-		          mem_req_valid_next	=	1'b0;
+		          mem_req_addr_next	=	64'bx;
+		          mem_req_data_next	=	64'bx;
+		          mem_req_op_next	=	4'bx;
+		          mem_req_rd_next	=	5'bx;
+		          mem_req_enable_next	=	1'b0;
 	           end
 	       endcase
 	    end
       else
 	    begin
-	       mem_req_addr_next	=	64'b0;
-	       mem_req_data_next	=	src2;
-	       mem_req_op_next	=	{1'b1,funct3};
-	       mem_req_rd_next	=	decode_dest_sel;
-	       mem_req_valid_next	=	1'b0;
+	       mem_req_addr_next	=	64'bx;
+	       mem_req_data_next	=	64'bx;
+	       mem_req_op_next	=	4'bx;
+	       mem_req_rd_next	=	5'bx;
+	       mem_req_enable_next	=	1'b0;
 	    end
    end
-
-   Fluid_Flop#(.Size(64+64+4+5))
-   MEM_ACCESS(
-
-	          .clk(clk),
-	          .reset(reset),
-
-	          .din({mem_req_addr_next,mem_req_data_next,mem_req_op_next,mem_req_rd_next}),
-	          .dinValid(mem_req_valid_next),
-	          .dinRetry(execute_mem_rety),
-
-	          .q({mem_req_addr,mem_req_data,mem_req_op,mem_req_rd}),
-	          .qRetry(mem_req_retry),
-	          .qValid(mem_req_valid)
-	          );
 
    assign instr_is_mem              = (op_code == `STORE)|(op_code == `LOAD);
    assign instr_need_dest           = ((op_code == `OP_IMM)|
@@ -470,124 +432,93 @@ module execute(
                                        (op_code == `JAL)|
                                        (op_code == `JALR));
 
-   assign	mem_ask_rety		    =	(execute_mem_rety) & (instr_is_mem);
-   assign	wb_dest		    	    = 	(execute_ack_data_valid&(~mem_ask_rety)) ? dest_temp : 64'b0;
-   assign	wb_rd_sel 	    	    = 	(execute_ack_data_valid&(~mem_ask_rety)) ? decode_dest_sel : 5'b0;
-   assign	wb_dest_enable 		    = 	(execute_ack_data_valid&(~mem_ask_rety)) & (instr_need_dest);
-   assign	wb_dest_long_enable	    = 	(execute_ack_data_valid&(~mem_ask_rety)) & (instr_need_dest_long);
+   assign	mem_ask_rety = (execute_mem_rety);
+   assign	execute_ack_data_rety =	(execute_ack_data_valid) & execute_mem_rety;
 
-   assign	branch_target		    =	(execute_ack_data_valid) ? branch_target_temp : 64'b0;
-   assign	branch_target_enable	=	(execute_ack_data_valid) & branch_target_enable_temp;
-   assign	execute_ack_data_rety	=	(execute_ack_data_valid) & execute_mem_rety & (instr_is_mem);
-
-
-
-
-
-
-
-
-
-
-   //synopsys translate_off
-
-`ifdef COMPILATION_SWITCH_EXECUTE
-
-   always@(posedge clk)begin
-      if(!reset&execute_ack_data_valid)
-	    begin
-	       case(op_code)
-	         `LUI	:	$display("execute.v: PC:0X%h instr is LUI \n",PC);		//dest_temp	= {{32{U_imm[19]}},U_imm,12'b0};
-	         `AUIPC:	$display("execute.v: PC:0X%h instr is AUIPC \n",PC);		//dest_temp	= PC_relative_value;
-	         `JAL	:	$display("execute.v: PC:0X%h instr is JAL \n",PC);		//dest_temp	= PC_relative_value;
-	         `JALR	:	$display("execute.v: PC:0X%h instr is JALR \n",PC);		//dest_temp	= PC_relative_value;
-	         `STORE:	$display("execute.v: PC:0X%h instr is STORE \n",PC);
-	         `LOAD	:	$display("execute.v: PC:0X%h instr is LOAD \n",PC);
-	         `BRANCH:
-	           begin
-		          case(funct3)
-		            `BRANCH_IS_BEQ:		$display("execute.v: PC:0X%h instr is BEQ \n",PC);
-		            `BRANCH_IS_BNE:		$display("execute.v: PC:0X%h instr is BNE \n",PC);
-		            `BRANCH_IS_BLT:		$display("execute.v: PC:0X%h instr is BLT \n",PC);
-		            `BRANCH_IS_BLTU:	$display("execute.v: PC:0X%h instr is BLTU \n",PC);
-		            `BRANCH_IS_BGE:		$display("execute.v: PC:0X%h instr is BGE \n",PC);
-		            `BRANCH_IS_BGEU:	$display("execute.v: PC:0X%h instr is BGEU \n",PC);
-		            default: 			$display("execute.v: Invalid not defined instr!!! \n");
-		          endcase
-	           end
-	         `OP_IMM,`OP_IMM_32,`OP_32,`OP :
-	           begin
-		          case(funct3)
-		            `OP_IS_ADD_SUB :
-		              begin
-		                 if(instr_is_SUB|instr_is_SUBW)
-			               begin
-			                  $display("execute.v: PC:0X%h instr is SUB \n",PC);
-			               end
-		                 else
-			               begin
-			                  $display("execute.v: PC:0X%h instr is ADD \n",PC);
-			               end
-		              end
-		            `OP_IS_SLL: 	$display("execute.v: PC:0X%h instr is SLL \n",PC);
-		            `OP_IS_SLT: 	$display("execute.v: PC:0X%h instr is SLT \n",PC);
-		            `OP_IS_SLTU:	$display("execute.v: PC:0X%h instr is SLTU \n",PC);
-		            `OP_IS_XOR:	$display("execute.v: PC:0X%h instr is XOR \n",PC);
-		            `OP_IS_SR:	begin
-		               if(funct7[5])
-			             begin
-			                $display("execute.v: PC:0X%h instr is SRA \n",PC);
-			             end
-		               else
-			             begin
-			                $display("execute.v: PC:0X%h instr is SRL",PC);
-			             end
-		            end
-		            `OP_IS_OR:	$display("execute.v: PC:0X%h instr is OR \n",PC);
-		            `OP_IS_AND:	$display("execute.v: PC:0X%h instr is AND \n",PC);
-		            default : $display ("\n");
-		          endcase
-	           end
-	         default : $display ("\n");
-	       endcase
-	    end
-   end
+   always_comb begin
+      if(execute_ack_data_valid&(~mem_ask_rety))
+        begin
+           wb_dest_next = dest_temp;
+           wb_rd_sel_next = decode_dest_sel;
+           wb_dest_enable_next = instr_need_dest;
+           wb_dest_long_enable_next = instr_need_dest_long;
+        end
+      else
+        begin
+           wb_dest_next = 64'b0;
+           wb_rd_sel_next = 5'b0;
+           wb_dest_enable = 1'b0;
+           wb_dest_long_enable_next = 1'b0;
+        end
+   end // always_comb
 
 
-   always@(posedge clk)begin
-      if(!reset)
-	    begin
-	       if(branch_target_enable)
-	         begin
-		        $display("execute.v: Branch Target enable!!\n");
-		        $display("execute.v: Target address is : 0X%h\n",branch_target);
-	         end
-	    end
-   end
+   always_comb begin
+      if(execute_ack_data_valid)
+        begin
+           branch_target = branch_target_temp;
+           branch_target_enable = branch_target_enable_temp;
+        end
+      else
+        begin
+           branch_target = 64'b0;
+           branch_taget_enable = 1'b0;
+        end
+   end // always_comb
 
-   always@(posedge clk)begin
-      if(!reset)
-	    begin
-	       if((execute_ack_data_valid) & execute_mem_rety)
-	         begin
-		        if(((op_code != `STORE)|(op_code != `LOAD)))
-		          begin
-		             $display("execute.v: Program Executed Out of Order for memroy stalls. This operation is valid!!!\n");
-		             $display("execute.v: Current PC = 0X%h",PC);
-		          end
-	         end
-	    end
-   end
 
-   always@(posedge clk)begin
-      if(!reset)
-	    begin
-	       if(execute_ack_data_rety)
-	         begin
-		        $display("execute.v: Execute stage stall because of memroy stalls. This operation is valid!!!\n");
-	         end
-	    end
-   end
-`endif
-   //synopsys translate on
+
+
+   flop_e #(.Bits(64+5+1+1))
+   WXBYPASS(
+
+	        .clk(clk),
+	        .reset(reset),
+            .we(wb_dest_enable_next),
+
+	        .d({wb_dest_next,
+                wb_rd_sel_next,
+                wb_dest_enable_next,
+                wb_dest_long_enable_next}),
+
+	        .q({last_dest,
+                last_rd_sel,
+                last_dest_enable,
+                last_dest_long_enable})
+	        );
+
+   Fluid_Flop#(.Size(64+5+1+1+64+64+4+5))
+   MEM_ACCESS(
+
+	          .clk(clk),
+	          .reset(reset),
+
+	          .din({wb_dest_next,
+                    wb_rd_sel_next,
+                    wb_dest_enable_next,
+                    wb_dest_long_enable_next,
+                    mem_req_addr_next,
+                    mem_req_data_next,
+                    mem_req_op_next,
+                    mem_req_rd_next,
+                    mem_req_enable_next}),
+
+	          .dinValid((execute_ack_data_valid&(~mem_ask_rety))),
+	          .dinRetry(execute_mem_rety),
+
+	          .q({wb_dest
+                  wb_rd_sel,
+                  wb_dest_enable,
+                  wb_dest_long_enable,
+                  mem_req_addr,
+                  mem_req_data,
+                  mem_req_op,
+                  mem_req_rd,
+                  mem_req_valid,
+                  mem_req_enable}),
+
+	          .qRetry(mem_req_retry),
+	          .qValid(mem_req_valid)
+	          );
+
 endmodule
